@@ -1,7 +1,10 @@
 // Hayrat Dua — iPhone (ve her tarayıcı) için web sürümü.
 // Android uygulamasıyla AYNI Firebase veritabanını ve aynı veri yapısını kullanır.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  EmailAuthProvider, linkWithCredential,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getDatabase, ref, onValue, off, update, set, get, push, remove, runTransaction,
   increment, serverTimestamp, onDisconnect, query, orderByChild,
@@ -119,6 +122,7 @@ let leavePresence = null;
 const syncBarHeight = () => document.documentElement.style.setProperty("--bar-h", $("#bar").offsetHeight + "px");
 window.addEventListener("resize", syncBarHeight);
 function setBar(title, { back = null, actions = "" } = {}) {
+  $("#bar").hidden = false;
   requestAnimationFrame(syncBarHeight);
   $("#title").textContent = title;
   const b = $("#back");
@@ -133,8 +137,12 @@ window.addEventListener("hashchange", route);
 function route() {
   clearSubs();
   closeSheet();
-  if (!uid) return;
-  if (!store.name) return askName(true);
+  const user = auth.currentUser;
+  if (!user || user.isAnonymous) return loginPage();
+  if (!store.name) {   // başka cihazda giriş: adı profilden al
+    get(ref(db, `users/${uid}/name`)).then(s => { store.name = s.val() || username(); route(); }).catch(() => { store.name = username(); route(); });
+    return;
+  }
   const p = location.hash.replace(/^#\/?/, "").split("/");
   document.body.classList.toggle("counter-page", p[0] === "g" && p[2] === "d");
   if (p[0] === "g" && p[1] && p[2] === "d" && p[3]) return counterPage(p[1], p[3]);
@@ -162,6 +170,7 @@ function askName(first) {
 
 async function renameEverywhere() {
   if (!uid) return;
+  set(ref(db, `users/${uid}/name`), store.name).catch(() => {});
   const gs = await get(ref(db, `users/${uid}/groups`)).catch(() => null);
   if (!gs || !gs.exists()) return;
   for (const gid of Object.keys(gs.val())) {
@@ -194,6 +203,7 @@ function groupsPage() {
   };
   draw();
   const groupUnsubs = {};
+  listen(`creators/${uid}`, s => { canCreate = s?.val() === true; });
   listen(`users/${uid}/groups`, s => {
     const ids = s && s.exists() ? Object.keys(s.val()) : [];
     for (const gid of Object.keys(groupUnsubs)) if (!ids.includes(gid)) { groupUnsubs[gid](); delete groupUnsubs[gid]; delete groups[gid]; }
@@ -227,6 +237,7 @@ function greetCard() {
   </svg><div class="ar">السلام عليكم</div></div>`;
 }
 
+let canCreate = false;
 function addGroupSheet() {
   const sh = sheet(`<h2>Grup ekle</h2><p class="s">Bir gruba katılın ya da yenisini kurun.</p>
     <button class="opt" id="o1"><div class="badge">${I.share}</div><div class="grow"><div class="t">Davet koduyla katıl</div><div class="d">Arkadaşınızdan aldığınız 6 haneli kodu girin.</div></div>${I.chev}</button>
@@ -235,6 +246,11 @@ function addGroupSheet() {
     title: "Davet koduyla katıl", sub: "Arkadaşınızdan aldığınız 6 haneli kodu girin.", placeholder: "••••••",
     button: "Gruba katıl", code: true, onOk: c => (c.length !== 6 ? "Kod 6 haneli olmalı" : join(c)),
   });
+  if (!canCreate) {
+    $("#o2", sh).style.opacity = .45;
+    $("#o2", sh).onclick = () => toast("Grup kurma yetkiniz yok. Yetki için yöneticiye başvurun", true);
+    return;
+  }
   $("#o2", sh).onclick = () => inputSheet({
     title: "Yeni grup kur", sub: "Grubu kurduktan sonra davet kodunu arkadaşlarınızla paylaşın.",
     placeholder: "Grup adı (örn. Perşembe Halkası)", button: "Grubu kur",
@@ -277,7 +293,7 @@ async function createGroup(name, attempt = 0) {
 }
 
 function shareInvite(groupName, code) {
-  const text = `"${groupName}" dua grubumuza katıl 🤲\n\nHayrat Dua uygulamasında "Grup ekle → Davet koduyla katıl" de ve şu kodu gir:\n\n${code}\n\n${location.origin + location.pathname}`;
+  const text = `"${groupName}" dua grubumuza katıl 🤲\n\nHayrat Dua uygulamasında "Grup ekle → Davet koduyla katıl" de ve şu kodu gir:\n\n${code}\n\niPhone ya da tarayıcıdan katılmak için:\n${location.origin + location.pathname}?kod=${code}`;
   if (navigator.share) navigator.share({ text }).catch(() => {});
   else navigator.clipboard?.writeText(text).then(() => toast("Davet metni kopyalandı"));
 }
@@ -531,7 +547,14 @@ function settingsPage() {
       <div class="section">PROFİL</div><div class="card">
         <div class="switch-row tap" id="rn"><div><div>Adınız</div><div class="sub">${esc(store.name)}</div></div>${I.chev}</div>
         <div class="switch-row tap" id="an"><div><div>Katkılarda adımı gizle</div><div class="sub">${store.anon ? `Listede “${ANON}” görünür` : "Katkılar listesinde adınız görünür"}</div></div><span class="tog ${store.anon ? "on" : ""}"></span></div></div>
+      <div class="section">HESAP</div><div class="card">
+        <div class="switch-row"><div><div>Kullanıcı adı</div><div class="sub">${esc(username())}</div></div></div>
+        <div class="switch-row tap" id="lo"><div><div>Çıkış yap</div><div class="sub">Bu cihazdan hesabınızdan çıkın</div></div>${I.chev}</div></div>
       <div class="sub" style="text-align:center;margin-top:28px">Hayrat Dua · web sürümü 1.0</div>`;
+    $("#lo").onclick = async () => {
+      if (!confirm("Çıkış yapılsın mı? Tekrar girmek için kullanıcı adı ve şifre gerekir.")) return;
+      await signOut(auth); store.name = ""; store.lastGroup = null; location.hash = ""; route();
+    };
     view.querySelectorAll("[data-c]").forEach(b => (b.onclick = () => { store.color = b.dataset.c; applyTheme(); draw(); }));
     $("#cc").onchange = e => { store.color = e.target.value; applyTheme(); draw(); };
     $("#rn").onclick = () => inputSheet({ title: "Adınızı değiştirin", sub: "Katkılar listesinde görünecek adınız.", placeholder: "Adınız", button: "Kaydet", value: store.name,
@@ -541,16 +564,98 @@ function settingsPage() {
   draw();
 }
 
+
+// ============================================================= GİRİŞ / KAYIT
+// Kullanıcı adı + şifre (Firebase e-posta/şifre; e-posta = ad@hayratdua.app).
+// Kayıt için geçerli bir davet kodu gerekir. Grup kurmak yalnızca yetkililere açık.
+const DOMAIN = "hayratdua.app";
+let loginBusy = false;
+const username = () => (auth.currentUser?.email || "").split("@")[0];
+function cleanUser(raw) {
+  const m = { ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u", Ç: "c", Ğ: "g", I: "i", İ: "i", Ö: "o", Ş: "s", Ü: "u" };
+  return [...raw.trim()].map(ch => m[ch] ?? ch.toLowerCase()).join("").replace(/ /g, ".").replace(/[^a-z0-9._-]/g, "");
+}
+function authMsg(e) {
+  const c = (e && (e.code || e.message)) || "";
+  if (/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)) return "Kullanıcı adı ya da şifre hatalı";
+  if (/email-already-in-use|credential-already-in-use/.test(c)) return "Bu kullanıcı adı alınmış";
+  if (/weak-password/.test(c)) return "Şifre en az 6 karakter olmalı";
+  if (/network/.test(c)) return "İnternet bağlantısı yok";
+  if (/too-many-requests/.test(c)) return "Çok fazla deneme yapıldı, biraz sonra tekrar deneyin";
+  if (/operation-not-allowed|configuration-not-found/.test(c)) return "Kullanıcı adı ile giriş henüz açılmamış (Firebase ayarı)";
+  return c;
+}
+
+function loginPage(mode = new URLSearchParams(location.search).get("kod") ? "register" : "login") {
+  document.body.classList.remove("counter-page");
+  $("#bar").hidden = true;
+  const code0 = new URLSearchParams(location.search).get("kod") || "";
+  const reg = mode === "register";
+  view.innerHTML = `<div class="login-hero"><img src="icons/hayrat_logo.png" alt=""><div class="ar">السلام عليكم</div><div class="brand">HAYRAT DUA</div></div>
+    <div class="login-card">
+      <div class="seg"><button class="${reg ? "" : "on"}" id="tl">Giriş yap</button><button class="${reg ? "on" : ""}" id="tr">Kayıt ol</button></div>
+      <h2>${reg ? "Kayıt ol" : "Hoş geldiniz"}</h2>
+      <p class="s">${reg ? "Kayıt için bir grubun davet kodu gerekir. Kodu grubu kuran kişiden alın." : "Kullanıcı adınız ve şifrenizle giriş yapın."}</p>
+      ${reg ? `<input class="field" id="fn" placeholder="Adınız (listelerde görünür)" autocomplete="name">` : ""}
+      <input class="field" id="fu" placeholder="Kullanıcı adı" autocapitalize="none" autocorrect="off" autocomplete="username">
+      <input class="field" id="fp" type="password" placeholder="Şifre (en az 6 karakter)" autocomplete="${reg ? "new-password" : "current-password"}">
+      ${reg ? `<input class="field code" id="fc" inputmode="numeric" maxlength="6" placeholder="Davet kodu" value="${esc(code0)}">` : ""}
+      <div class="err" id="fe"></div>
+      <button class="primary" id="go">${reg ? "Kayıt ol ve gruba katıl" : "Giriş yap"}</button>
+      <p class="s" style="text-align:center;margin-top:14px;font-size:12.5px">${reg ? "Kullanıcı adınızı ve şifrenizi unutmayın; başka cihazda da bunlarla girersiniz." : "Hesabınız yoksa “Kayıt ol” sekmesinden, aldığınız davet koduyla kayıt olun."}</p>
+    </div>`;
+  $("#tl").onclick = () => loginPage("login");
+  $("#tr").onclick = () => loginPage("register");
+  const err = $("#fe");
+  $("#go").onclick = async () => {
+    err.textContent = "";
+    const name = reg ? $("#fn").value.trim() : "";
+    const u = cleanUser($("#fu").value), p = $("#fp").value, code = reg ? $("#fc").value.trim() : "";
+    if (u.length < 3) return (err.textContent = "Kullanıcı adı en az 3 karakter olmalı");
+    if (p.length < 6) return (err.textContent = "Şifre en az 6 karakter olmalı");
+    if (reg && !name) return (err.textContent = "Adınızı yazın");
+    if (reg && code.length !== 6) return (err.textContent = "Davet kodu 6 haneli olmalı");
+    $("#go").disabled = true; loginBusy = true;
+    try {
+      if (!reg) {
+        if (auth.currentUser?.isAnonymous) await signOut(auth);
+        const r = await signInWithEmailAndPassword(auth, `${u}@${DOMAIN}`, p);
+        uid = r.user.uid;
+        const s = await get(ref(db, `users/${uid}/name`)).catch(() => null);
+        store.name = s?.val() || u;
+        store.lastGroup = null;
+      } else {
+        if (!auth.currentUser) await signInAnonymously(auth);
+        const gid = (await get(ref(db, `codes/${code}`))).val();
+        if (!gid) throw { code: "x", message: "Bu davet kodu geçersiz" };
+        if ((await get(ref(db, `usernames/${u}`))).exists()) throw { code: "auth/email-already-in-use" };
+        const cred = EmailAuthProvider.credential(`${u}@${DOMAIN}`, p);
+        const r = await linkWithCredential(auth.currentUser, cred);
+        await r.user.getIdToken(true);
+        uid = r.user.uid;
+        await update(ref(db), {
+          [`usernames/${u}`]: uid, [`users/${uid}/name`]: name, [`users/${uid}/username`]: u,
+          [`groups/${gid}/members/${uid}`]: name, [`users/${uid}/groups/${gid}`]: true,
+        });
+        store.name = name; store.lastGroup = gid;
+      }
+      loginBusy = false;
+      $("#bar").hidden = false;
+      if (location.search) history.replaceState(null, "", location.pathname);
+      location.hash = store.lastGroup ? `#/g/${store.lastGroup}` : "#/";
+      route();
+    } catch (e) {
+      loginBusy = false; $("#go").disabled = false;
+      err.textContent = e.code === "x" ? e.message : authMsg(e);
+    }
+  };
+}
+
 // ============================================================= başlangıç
 view.innerHTML = `<div class="empty">Bağlanıyor…</div>`;
 onAuthStateChanged(auth, user => {
-  if (user) {
-    uid = user.uid;
-    if (!location.hash && store.lastGroup) location.hash = `#/g/${store.lastGroup}`;
-    route();
-  }
-});
-signInAnonymously(auth).catch(e => {
-  view.innerHTML = `<div class="empty">Bağlantı kurulamadı.<br>İnternetinizi kontrol edip sayfayı yenileyin.<br><br><small>${esc(e.code || e.message)}</small></div>`;
+  uid = user ? user.uid : null;
+  if (user && !user.isAnonymous && !location.hash && store.lastGroup) location.hash = `#/g/${store.lastGroup}`;
+  if (!loginBusy) route();
 });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
