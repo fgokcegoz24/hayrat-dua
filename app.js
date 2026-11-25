@@ -73,6 +73,14 @@ const I = {
   refresh: '<svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>',
   minus: '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>',
   many: '<svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>',
+  people: '<svg viewBox="0 0 24 24"><path d="M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05A4.22 4.22 0 0 1 17 16.5V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
+  edit: '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
+  exit: '<svg viewBox="0 0 24 24"><path d="M10.09 15.59 11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 0 0-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>',
+  shield: '<svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>',
+  shieldOff: '<svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>',
+  personRemove: '<svg viewBox="0 0 24 24"><path d="M14 8a4 4 0 1 0-8 0 4 4 0 0 0 8 0zm3 2v2h6v-2h-6zM2 18v2h16v-2c0-2.66-5.33-4-8-4s-8 1.34-8 4z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M15 16h4v2h-4zm0-8h7v2h-7zm0 4h6v2h-6zM3 18a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V8H3v10zM14 5h-3l-1-1H6L5 5H2v2h12z"/></svg>',
   ok: '<svg viewBox="0 0 24 24"><path fill="#5FD38D" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
   warn: '<svg viewBox="0 0 24 24"><path fill="#F2B84B" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>',
 };
@@ -94,6 +102,24 @@ function sheet(html) {
   return sh;
 }
 function closeSheet() { $("#sheet-wrap").hidden = true; $("#sheet").innerHTML = ""; }
+
+/** Onay sayfası: başlık, açıklama, Vazgeç + onay düğmesi (tehlikeliyse kırmızı). */
+function confirmSheet({ title, msg, ok, danger = false, cancel = "Vazgeç", emoji = "", onOk }) {
+  const sh = sheet(`${emoji ? `<div style="text-align:center;font-size:44px;margin-top:12px">${emoji}</div>` : ""}
+    <h2>${esc(title)}</h2><p class="s">${esc(msg)}</p>
+    <div class="btnrow"><button class="soft-btn" id="cx">${esc(cancel)}</button><button class="primary ${danger ? "danger" : ""}" id="cy">${esc(ok)}</button></div>`);
+  $("#cx", sh).onclick = closeSheet;
+  $("#cy", sh).onclick = () => { closeSheet(); onOk(); };
+}
+
+/** Kartlı seçenek menüsü (alttan açılır). items: {icon, title, desc, danger, run} */
+function menuSheet(head, items) {
+  const sh = sheet(head + items.map((it, i) => `<button class="opt ${it.danger ? "danger-opt" : ""}" data-i="${i}">
+      <div class="badge sm">${it.icon}</div><div class="grow"><div class="t">${esc(it.title)}</div>${it.desc ? `<div class="d">${esc(it.desc)}</div>` : ""}</div></button>`).join(""));
+  sh.querySelectorAll("[data-i]").forEach(b => (b.onclick = () => { closeSheet(); setTimeout(() => items[+b.dataset.i].run(), 60); }));
+}
+
+const initials = n => { const p = n.trim().split(/\s+/).filter(Boolean); return (p.length > 1 ? p[0][0] + p[1][0] : (p[0] || "?")[0]).toLocaleUpperCase("tr"); };
 
 /** Tek alanlı giriş sayfası. onOk hata metni dönerse gösterir, null dönerse kapanır. */
 function inputSheet({ title, sub, placeholder, button, code = false, value = "", onOk }) {
@@ -301,8 +327,9 @@ function shareInvite(groupName, code) {
 // ============================================================= DUA LİSTESİ
 function duasPage(gid) {
   store.lastGroup = gid;
-  setBar("Grup", { back: () => { store.lastGroup = null; go("#/"); }, actions: `<button class="icon-btn" id="sh" aria-label="Davet">${I.share}</button>` });
-  let info = {}, members = 0, duas = [], online = {};
+  setBar("Grup", { back: () => { store.lastGroup = null; go("#/"); }, actions: `<button class="icon-btn" id="sh" aria-label="Davet">${I.share}</button><button class="icon-btn" id="mm" aria-label="Menü">${I.more}</button>` });
+  let info = {}, members = 0, duas = [], online = {}, memberList = [], owner = "", admins = new Set();
+  const isAdmin = u => u === owner || admins.has(u);
   const draw = () => {
     const total = duas.reduce((a, d) => a + d.rounds * d.target + d.count, 0);
     const on = Object.values(online).reduce((a, b) => a + b, 0);
@@ -320,10 +347,63 @@ function duasPage(gid) {
     $("#fab").onclick = () => duaForm(gid);
   };
   $("#sh").onclick = () => shareInvite(info.name, info.code);
+  $("#mm").onclick = () => {
+    const items = [{ icon: I.people, title: "Üyeler ve yöneticiler", desc: `${memberList.length} kişi`, run: showMembers }];
+    if (isAdmin(uid)) items.push({ icon: I.edit, title: "Grup adını değiştir", desc: "Yeni ad bütün üyelerde görünür", run: renameGroup });
+    items.push({ icon: I.exit, title: "Gruptan çık", desc: "Grup listenizden kalkar", danger: true, run: leaveGroup });
+    menuSheet(`<h2>${esc(info.name)}</h2><p class="s">Davet kodu ${esc(info.code)}</p>`, items);
+  };
+
+  function renameGroup() {
+    inputSheet({ title: "Grup adını değiştir", sub: "Yeni ad bütün üyelerde görünür.", placeholder: "Grup adı", button: "Kaydet", value: info.name,
+      onOk: n => { if (!n) return "Grup adı gerekli"; set(ref(db, `groups/${gid}/info/name`), n).then(() => toast("Grup adı değiştirildi")).catch(e => toast("Değiştirilemedi: " + e.message, true)); return null; } });
+  }
+  function leaveGroup() {
+    confirmSheet({ title: "Gruptan çıkılsın mı?", msg: `"${info.name}" grubu listenizden kalkar. Tekrar katılmak için davet kodu gerekir. Okumalarınız grupta kalır.`,
+      ok: "Gruptan çık", danger: true, onOk: async () => {
+        clearSubs();
+        await update(ref(db), { [`groups/${gid}/members/${uid}`]: null, [`users/${uid}/groups/${gid}`]: null }).catch(e => toast("Çıkılamadı: " + e.message, true));
+        store.lastGroup = null; go("#/");
+      } });
+  }
+  const avatar = (u, name, big = false) => {
+    const c = u === owner ? "var(--gold)" : "var(--primary)";
+    return `<div class="av ${big ? "big" : ""}" style="color:${c};background:color-mix(in srgb, ${c} 14%, transparent)">${esc(initials(name))}</div>`;
+  };
+  function showMembers() {
+    const sorted = [...memberList].sort((a, b) => (b.uid === owner) - (a.uid === owner) || isAdmin(b.uid) - isAdmin(a.uid) || (b.uid === uid) - (a.uid === uid) || a.name.localeCompare(b.name, "tr"));
+    const nAdm = memberList.filter(m => isAdmin(m.uid) && m.uid !== owner).length;
+    const can = m => isAdmin(uid) && m.uid !== uid && m.uid !== owner && (uid === owner || !isAdmin(m.uid));
+    const sh = sheet(`<div class="row" style="margin-top:16px"><h2 class="grow" style="margin:0">Üyeler</h2><span class="cnt">${memberList.length} kişi</span></div>
+      <p class="s" style="margin-top:4px">${isAdmin(uid) ? "Bir üyenin yanındaki ⋮ simgesine dokunarak yönetici yapabilir ya da gruptan çıkarabilirsiniz." : "Grubu kuran kişi ve yöneticiler duaları düzenleyebilir, sayacı düzeltebilir."}</p>
+      <div class="glass soft"><div><b>1</b><span>KURUCU</span></div><div><b>${nAdm}</b><span>YÖNETİCİ</span></div><div><b>${Math.max(0, memberList.length - nAdm - 1)}</b><span>ÜYE</span></div></div>
+      <div class="mlist">${sorted.map((m, i) => `<div class="mrow ${can(m) ? "tap" : ""}" data-m="${i}">${avatar(m.uid, m.name)}
+        <div class="grow"><div class="name" style="font-size:16px">${esc(m.name)}</div><div class="chips" style="margin-top:4px">
+        ${m.uid === owner ? chip("Kurucu", "var(--gold)") : isAdmin(m.uid) ? chip("Yönetici", "var(--primary)") : ""}${m.uid === uid ? chip("Siz", "var(--muted)") : ""}</div></div>
+        ${can(m) ? `<span class="more">${I.more}</span>` : ""}</div>`).join("")}</div>`);
+    sh.querySelectorAll(".mrow.tap").forEach(el => (el.onclick = () => { const m = sorted[+el.dataset.m]; closeSheet(); setTimeout(() => memberActions(m), 60); }));
+  }
+  function memberActions(m) {
+    const items = [];
+    if (uid === owner) items.push(isAdmin(m.uid)
+      ? { icon: I.shieldOff, title: "Yöneticilikten al", desc: "Artık duaları düzenleyemez, üye çıkaramaz.", run: () => remove(ref(db, `groups/${gid}/admins/${m.uid}`)).then(() => toast(`${m.name} artık yönetici değil`)) }
+      : { icon: I.shield, title: "Yönetici yap", desc: "Duaları düzenleyebilir, sayacı düzeltebilir, üye çıkarabilir.", run: () => set(ref(db, `groups/${gid}/admins/${m.uid}`), true).then(() => toast(`${m.name} artık grup yöneticisi`)) });
+    items.push({ icon: I.personRemove, title: "Gruptan çıkar", desc: "Grubu artık göremez. Okumaları sayaçta kalır.", danger: true,
+      run: () => confirmSheet({ title: `${m.name} çıkarılsın mı?`, msg: "Davet koduyla tekrar katılabilir.", ok: "Çıkar", danger: true, onOk: () => {
+        const u = { [`groups/${gid}/members/${m.uid}`]: null };
+        if (uid === owner) u[`groups/${gid}/admins/${m.uid}`] = null;
+        update(ref(db), u).then(() => toast(`${m.name} gruptan çıkarıldı`)).catch(e => toast("Çıkarılamadı: " + e.message, true));
+      } }) });
+    menuSheet(`<div class="row" style="margin-top:16px">${avatar(m.uid, m.name, true)}<div class="grow"><h2 style="margin:0">${esc(m.name)}</h2><p class="s">${isAdmin(m.uid) ? "Grup yöneticisi" : "Grup üyesi"}</p></div></div>`, items);
+  }
+
   listen(`groups/${gid}`, (s, err) => {
     if (err || !s) { store.lastGroup = null; toast("Bu gruba erişilemiyor", true); go("#/"); return; }
     info = { name: s.child("info/name").val() || "Grup", code: s.child("info/code").val() || "" };
     members = s.child("members").size;
+    owner = s.child("info/createdBy").val() || "";
+    admins = new Set(Object.keys(s.child("admins").val() || {}));
+    memberList = []; s.child("members").forEach(m => { memberList.push({ uid: m.key, name: m.val() || "?" }); });
     $("#title").textContent = info.name;
     draw();
   });
@@ -381,7 +461,15 @@ function duaForm(gid) {
 
 // ============================================================= OKUMA SAYFASI
 function counterPage(gid, id) {
-  setBar("", { back: () => go(`#/g/${gid}`) });
+  setBar("", { back: () => go(`#/g/${gid}`), actions: `<button class="icon-btn" id="cm" aria-label="Menü" hidden>${I.more}</button>` });
+  let gOwner = "", gAdmins = new Set();
+  const amAdmin = () => uid === gOwner || gAdmins.has(uid);
+  listen(`groups/${gid}`, s => {
+    if (!s) return;
+    gOwner = s.child("info/createdBy").val() || "";
+    gAdmins = new Set(Object.keys(s.child("admins").val() || {}));
+    const b = $("#cm"); if (b) b.hidden = !(amAdmin() || (d && d.createdBy === uid));
+  });
   let d = null, all = [], round = [], mine = 0, roundMine = 0, showRound = true, roundUnsub = null, listenedRound = -1, img = null, lastCount = null;
   let sessionAdded = 0;
   const R = 63, C = 2 * Math.PI * R;
@@ -420,7 +508,48 @@ function counterPage(gid, id) {
   $("#tg").onclick = () => { store.setShow(gid, id, !store.show(gid, id, d.showText)); drawText(); };
   $("#fm").onclick = () => { store.font = Math.max(14, store.font - 2); drawText(); };
   $("#fp").onclick = () => { store.font = Math.min(40, store.font + 2); drawText(); };
-  $("#nr").onclick = newRound;
+  $("#nr").onclick = () => confirmSheet({ title: "Yeni tura başlansın mı?",
+    msg: `Sayaç ${fmt(d.target)} azaltılacak ve tamamlanan tur sayısı 1 artacak. Hedefin üstündeki okumalar yeni tura aktarılır.`, ok: "Başlat", onOk: newRound });
+  $("#cm").onclick = () => {
+    const items = [];
+    if (amAdmin()) {
+      items.push({ icon: I.edit, title: "Sayacı düzelt", desc: "Ortak sayacı elle ayarlayın", run: fixCount });
+      items.push({ icon: I.refresh, title: "Sıfırla / baştan başla", desc: "Sayaç, turlar ve okuyanlar", run: resetSheet });
+    }
+    if (amAdmin() || d.createdBy === uid) items.push({ icon: I.trash, title: "Duayı sil", desc: "Sayaç, katkı ve geçmişle birlikte", danger: true, run: deleteDua });
+    menuSheet(`<h2>${esc(d.name)}</h2><p class="s">Yönetici işlemleri</p>`, items);
+  };
+  function fixCount() {
+    inputSheet({ title: "Sayacı düzelt", sub: "Bu turun ortak sayacı herkes için bu değere ayarlanır. Kişi katkıları değişmez.", placeholder: "Doğru sayı", button: "Ayarla", value: String(d.count),
+      onOk: v => { const n = parseInt(v, 10); if (!(n >= 0)) return "Geçerli bir sayı girin"; set(ref(db, `g/${gid}/duas/${id}/count`), n).then(() => toast("Sayaç ayarlandı")); return null; } });
+  }
+  function resetSheet() {
+    let choice = -1;
+    const sh = sheet(`<h2>Ne sıfırlansın?</h2><p class="s">Bu işlem gruptaki herkes için geçerlidir.</p>
+      <button class="opt" data-c="0"><div class="badge sm">${I.refresh}</div><div class="grow"><div class="t">Sadece ortak sayaç</div><div class="d">Ortak sayaç sıfırlanır. Okuyanlar listesi ve tamamlanan turlar kalır.</div></div></button>
+      <button class="opt danger-opt" data-c="1"><div class="badge sm">${I.trash}</div><div class="grow"><div class="t">Her şey (baştan başla)</div><div class="d">Ortak sayaç, tamamlanan turlar ve okuyanlar listesi sıfırlanır. Dua, görsel ve hedef kalır. Önceki dönemin özeti Geçmiş'e kaydedilir.</div></div></button>
+      <div class="btnrow"><button class="soft-btn" id="rx">Vazgeç</button><button class="primary" id="ry" disabled>Sıfırla</button></div>`);
+    sh.querySelectorAll("[data-c]").forEach(b => (b.onclick = () => {
+      choice = +b.dataset.c;
+      sh.querySelectorAll("[data-c]").forEach(x => x.classList.toggle("sel", x === b));
+      const y = $("#ry", sh); y.disabled = false; y.textContent = choice ? "Baştan başla" : "Sayacı sıfırla"; y.classList.toggle("danger", choice === 1);
+    }));
+    $("#rx", sh).onclick = closeSheet;
+    $("#ry", sh).onclick = async () => {
+      closeSheet();
+      if (choice === 0) return set(ref(db, `g/${gid}/duas/${id}/count`), 0).then(() => toast("Ortak sayaç sıfırlandı"));
+      const total = all.reduce((a, r) => a + r.count, 0), hKey = push(ref(db, `g/${gid}/history/${id}`)).key;
+      await update(ref(db), {
+        [`g/${gid}/history/${id}/${hKey}`]: { type: "reset", total, people: all.length, rounds: d.rounds, count: d.count, completedAt: serverTimestamp(), by: store.name },
+        [`g/${gid}/duas/${id}/count`]: 0, [`g/${gid}/duas/${id}/rounds`]: 0, [`g/${gid}/contrib/${id}`]: null, [`g/${gid}/rc/${id}`]: null,
+      }).then(() => toast("Baştan başlandı. Önceki dönemin özeti kaydedildi.")).catch(e => toast("Sıfırlanamadı: " + e.message, true));
+    };
+  }
+  function deleteDua() {
+    confirmSheet({ title: `"${d.name}" silinsin mi?`, msg: "Duanın sayacı, katkıları ve geçmişi herkes için silinecek. Bu işlem geri alınamaz.", ok: "Sil", danger: true,
+      onOk: () => { const b = `g/${gid}`; clearSubs(); update(ref(db), { [`${b}/duas/${id}`]: null, [`${b}/contrib/${id}`]: null, [`${b}/history/${id}`]: null,
+        [`${b}/stats/${id}`]: null, [`${b}/presence/${id}`]: null, [`${b}/img/${id}`]: null, [`${b}/rc/${id}`]: null }).then(() => go(`#/g/${gid}`)); } });
+  }
 
   function add(n) {
     if (!d) return;
@@ -519,7 +648,9 @@ function counterPage(gid, id) {
       listenedRound = d.rounds; roundUnsub?.();
       roundUnsub = onValue(ref(db, `g/${gid}/rc/${id}/${d.rounds}`), rs => { round = rows(rs); roundMine = rs.child(uid).child("count").val() || 0; drawList(); });
     }
-    if (prev !== null && prev < d.target && d.count >= d.target) toast(`“${d.name}” ${fmt(d.target)} kere okundu. Allah kabul etsin 🤲`);
+    $("#cm").hidden = !(amAdmin() || d.createdBy === uid);
+    if (prev !== null && prev < d.target && d.count >= d.target)
+      confirmSheet({ title: "Hedefe ulaşıldı", msg: `"${d.name}" ${fmt(d.target)} kere okundu. Allah kabul etsin.`, ok: "Yeni tura başla", cancel: "Kapat", emoji: "🤲", onOk: newRound });
   });
   subs.push(() => roundUnsub?.());
   listen(`g/${gid}/img/${id}`, s => { const v = s?.val(); img = v ? "data:image/jpeg;base64," + v : null; if (d) drawText(); });
@@ -552,8 +683,8 @@ function settingsPage() {
         <div class="switch-row tap" id="lo"><div><div>Çıkış yap</div><div class="sub">Bu cihazdan hesabınızdan çıkın</div></div>${I.chev}</div></div>
       <div class="sub" style="text-align:center;margin-top:28px">Hayrat Dua · web sürümü 1.0</div>`;
     $("#lo").onclick = async () => {
-      if (!confirm("Çıkış yapılsın mı? Tekrar girmek için kullanıcı adı ve şifre gerekir.")) return;
-      await signOut(auth); store.name = ""; store.lastGroup = null; location.hash = ""; route();
+      confirmSheet({ title: "Çıkış yapılsın mı?", msg: "Tekrar girmek için kullanıcı adınız ve şifreniz gerekir.", ok: "Çıkış yap", danger: true,
+        onOk: async () => { await signOut(auth); store.name = ""; store.lastGroup = null; location.hash = ""; route(); } });
     };
     view.querySelectorAll("[data-c]").forEach(b => (b.onclick = () => { store.color = b.dataset.c; applyTheme(); draw(); }));
     $("#cc").onchange = e => { store.color = e.target.value; applyTheme(); draw(); };

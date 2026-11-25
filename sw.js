@@ -1,5 +1,5 @@
 // Basit önbellek: uygulama kabuğu hızlı açılsın. Veriler her zaman Firebase'den canlı gelir.
-const CACHE = 'hayrat-dua-v1';
+const CACHE = 'hayrat-dua-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'aref_ruqaa.ttf',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/hayrat_logo.png'];
 
