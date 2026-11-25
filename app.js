@@ -383,6 +383,23 @@ function duasPage(gid) {
   }
 
   function leaveGroup() {
+    // Grupta başka kimse yoksa: çıkarken grup da silinsin (sahipsiz grup kalmasın)
+    if (!memberList.some(m => m.uid !== uid)) {
+      return confirmSheet({ title: "Grupta başka kimse kalmadı",
+        msg: `"${info.name}" grubunun son üyesisiniz. Çıkarsanız grup; duaları, sayaçları, geçmişi ve davet koduyla birlikte kalıcı olarak silinir.`,
+        ok: "Grubu sil ve çık", danger: true, onOk: async () => {
+          clearSubs();
+          try {
+            await update(ref(db), { [`g/${gid}`]: null, [`users/${uid}/groups/${gid}`]: null });
+            await remove(ref(db, `groups/${gid}/members/${uid}`));
+            const u = { [`groups/${gid}`]: null };
+            if (info.code) u[`codes/${info.code}`] = null;
+            await update(ref(db), u);
+            toast(`"${info.name}" silindi`);
+          } catch (e) { toast("Gruptan çıkıldı, ancak grup silinemedi: " + e.message, true); }
+          store.lastGroup = null; go("#/");
+        } });
+    }
     confirmSheet({ title: "Gruptan çıkılsın mı?", msg: `"${info.name}" grubu listenizden kalkar. Tekrar katılmak için davet kodu gerekir. Okumalarınız grupta kalır.`,
       ok: "Gruptan çık", danger: true, onOk: async () => {
         clearSubs();
@@ -390,6 +407,7 @@ function duasPage(gid) {
         store.lastGroup = null; go("#/");
       } });
   }
+
   const avatar = (u, name, big = false) => {
     const c = u === owner ? "var(--gold)" : "var(--primary)";
     return `<div class="av ${big ? "big" : ""}" style="color:${c};background:color-mix(in srgb, ${c} 14%, transparent)">${esc(initials(name))}</div>`;
