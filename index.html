@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <title>Hayrat Dua</title>
+  <meta name="description" content="Birlikte dua okuma sayacı">
+  <meta name="theme-color" content="#1E724A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hayrat Dua">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="bar">
+    <button id="back" class="icon-btn" aria-label="Geri" hidden>
+      <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <h1 id="title">Hayrat Dua</h1>
+    <div id="actions"></div>
+  </header>
+  <main id="view"></main>
+  <div id="sheet-wrap" hidden><div id="sheet"></div></div>
+  <div id="snack" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
