@@ -235,7 +235,7 @@ function groupsPage() {
     for (const gid of Object.keys(groupUnsubs)) if (!ids.includes(gid)) { groupUnsubs[gid](); delete groupUnsubs[gid]; delete groups[gid]; }
     for (const gid of ids) if (!groupUnsubs[gid]) {
       groupUnsubs[gid] = onValue(ref(db, `groups/${gid}`), gs => {
-        if (!gs.exists()) { delete groups[gid]; draw(); return; }
+        if (!gs.exists()) { delete groups[gid]; remove(ref(db, `users/${uid}/groups/${gid}`)).catch(() => {}); draw(); return; }
         groups[gid] = { id: gid, name: gs.child("info/name").val() || "Grup", code: gs.child("info/code").val() || "", members: gs.child("members").size };
         draw();
       }, () => { delete groups[gid]; remove(ref(db, `users/${uid}/groups/${gid}`)).catch(() => {}); draw(); });
@@ -328,7 +328,8 @@ function shareInvite(groupName, code) {
 function duasPage(gid) {
   store.lastGroup = gid;
   setBar("Grup", { back: () => { store.lastGroup = null; go("#/"); }, actions: `<button class="icon-btn" id="sh" aria-label="Davet">${I.share}</button><button class="icon-btn" id="mm" aria-label="Menü">${I.more}</button>` });
-  let info = {}, members = 0, duas = [], online = {}, memberList = [], owner = "", admins = new Set();
+  let info = {}, members = 0, duas = [], online = {}, memberList = [], owner = "", admins = new Set(), globalOwner = false;
+  get(ref(db, `owners/${uid}`)).then(s => (globalOwner = s.exists())).catch(() => {});
   const isAdmin = u => u === owner || admins.has(u);
   const draw = () => {
     const total = duas.reduce((a, d) => a + d.rounds * d.target + d.count, 0);
@@ -351,6 +352,7 @@ function duasPage(gid) {
     const items = [{ icon: I.people, title: "Üyeler ve yöneticiler", desc: `${memberList.length} kişi`, run: showMembers }];
     if (isAdmin(uid)) items.push({ icon: I.edit, title: "Grup adını değiştir", desc: "Yeni ad bütün üyelerde görünür", run: renameGroup });
     items.push({ icon: I.exit, title: "Gruptan çık", desc: "Grup listenizden kalkar", danger: true, run: leaveGroup });
+    if (uid === owner || globalOwner) items.push({ icon: I.trash, title: "Grubu sil", desc: "Herkes için kalıcı olarak silinir", danger: true, run: deleteGroup });
     menuSheet(`<h2>${esc(info.name)}</h2><p class="s">Davet kodu ${esc(info.code)}</p>`, items);
   };
 
@@ -358,6 +360,28 @@ function duasPage(gid) {
     inputSheet({ title: "Grup adını değiştir", sub: "Yeni ad bütün üyelerde görünür.", placeholder: "Grup adı", button: "Kaydet", value: info.name,
       onOk: n => { if (!n) return "Grup adı gerekli"; set(ref(db, `groups/${gid}/info/name`), n).then(() => toast("Grup adı değiştirildi")).catch(e => toast("Değiştirilemedi: " + e.message, true)); return null; } });
   }
+  /** Grubu tamamen siler (kurucu ya da baş yönetici). Yanlışlıkla silinmesin diye adını yazmak gerekir. */
+  function deleteGroup() {
+    const total = duas.reduce((a, d) => a + d.rounds * d.target + d.count, 0);
+    const sh = sheet(`<h2>"${esc(info.name)}" silinsin mi?</h2>
+      <p class="s">Grup herkes için kalıcı olarak silinir: dualar, sayaçlar, okuyanlar, geçmiş ve davet kodu. Bu işlem geri alınamaz.</p>
+      <div class="glass soft" style="margin-top:14px"><div><b>${duas.length}</b><span>DUA</span></div><div><b>${memberList.length}</b><span>ÜYE</span></div><div><b>${fmt(total)}</b><span>OKUMA</span></div></div>
+      <p class="s" style="margin-top:14px;color:var(--text)">Onaylamak için grubun adını aynen yazın: <b>${esc(info.name)}</b></p>
+      <input class="field" id="dn" placeholder="Grubun adı" autocomplete="off">
+      <div class="btnrow"><button class="soft-btn" id="dx">Vazgeç</button><button class="primary danger" id="dy" disabled>Kalıcı olarak sil</button></div>`);
+    const norm = x => x.trim().toLocaleLowerCase("tr");
+    $("#dn", sh).oninput = e => ($("#dy", sh).disabled = norm(e.target.value) !== norm(info.name));
+    $("#dx", sh).onclick = closeSheet;
+    $("#dy", sh).onclick = async () => {
+      closeSheet(); clearSubs();
+      const u = { [`g/${gid}`]: null, [`groups/${gid}`]: null, [`users/${uid}/groups/${gid}`]: null };
+      if (info.code) u[`codes/${info.code}`] = null;
+      try { await update(ref(db), u); toast(`"${info.name}" silindi`); }
+      catch (e) { toast("Silinemedi: " + e.message, true); }
+      store.lastGroup = null; go("#/");
+    };
+  }
+
   function leaveGroup() {
     confirmSheet({ title: "Gruptan çıkılsın mı?", msg: `"${info.name}" grubu listenizden kalkar. Tekrar katılmak için davet kodu gerekir. Okumalarınız grupta kalır.`,
       ok: "Gruptan çık", danger: true, onOk: async () => {
