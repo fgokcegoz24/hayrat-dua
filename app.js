@@ -681,7 +681,7 @@ function settingsPage() {
       <div class="section">HESAP</div><div class="card">
         <div class="switch-row"><div><div>Kullanıcı adı</div><div class="sub">${esc(username())}</div></div></div>
         <div class="switch-row tap" id="lo"><div><div>Çıkış yap</div><div class="sub">Bu cihazdan hesabınızdan çıkın</div></div>${I.chev}</div></div>
-      <div class="sub" style="text-align:center;margin-top:28px">Hayrat Dua · web sürümü 1.0</div>`;
+      <div class="sub" style="text-align:center;margin-top:28px">Hayrat Dua · web sürümü 1.0.1</div>`;
     $("#lo").onclick = async () => {
       confirmSheet({ title: "Çıkış yapılsın mı?", msg: "Tekrar girmek için kullanıcı adınız ve şifreniz gerekir.", ok: "Çıkış yap", danger: true,
         onOk: async () => { await signOut(auth); store.name = ""; store.lastGroup = null; location.hash = ""; route(); } });
